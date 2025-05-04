@@ -102,12 +102,29 @@ function addPattern() {
     const color = newColorSelect.value;
 
     if (!pattern || !title) {
-        displayStatus('Please enter both a pattern and a title.', true);
+        displayStatus('Pattern and Title cannot be empty.', true);
+        return;
+    }
+    
+    // Prevent overly simple/problematic patterns (example)
+    if (pattern === "*") {
+        displayStatus('Pattern cannot be just "*".', true);
         return;
     }
 
+    // Check for duplicate patterns (case-insensitive)
+    if (currentPatterns.some(p => p.pattern.toLowerCase() === pattern.toLowerCase())) {
+      displayStatus('This pattern already exists.', true);
+      return;
+    }
+    // Optional: Check for duplicate titles?
+    // if (currentPatterns.some(p => p.groupTitle.toLowerCase() === title.toLowerCase())) {
+    //   displayStatus('A group with this title already exists (though using a different pattern).', true);
+    //   return;
+    // }
+
     currentPatterns.push({ pattern: pattern, groupTitle: title, color: color });
-    savePatterns(); // Save and re-render
+    savePatterns();
 
     newPatternInput.value = '';
     newTitleInput.value = '';

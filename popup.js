@@ -130,11 +130,15 @@ async function restoreGroup(archive) {
     }
 }
 
-async function switchToTab(tabId, windowId) {
+async function switchToTab(tabId, windowId, groupId) {
     try {
         // Check if the tab still exists before trying to switch
-        await chrome.tabs.get(tabId);
-        
+        // We still need to get the tab to confirm it belongs to the expected window
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.windowId !== windowId) {
+            throw new Error("Tab is in a different window than expected.");
+        }
+
         // Switch window focus first (if necessary)
         const currentWindow = await chrome.windows.getCurrent();
         if (currentWindow.id !== windowId) {
@@ -142,18 +146,33 @@ async function switchToTab(tabId, windowId) {
         }
         // Then activate the tab
         await chrome.tabs.update(tabId, { active: true });
-        // Close the popup after switching
-        window.close(); 
+        window.close();
     } catch (error) {
         console.error("Error switching to tab:", error);
-        if (error.message.includes("No tab with id")) {
+        let isStale = false;
+        if (error.message.includes("No tab with id") || 
+            error.message.includes("Tab not found") || 
+            error.message.includes("Invalid tab ID")) 
+        {
             displayStatus("Cannot switch: Tab no longer exists.", true);
-            // TODO: Optionally remove the stale session storage key here
+            isStale = true;
         } else if (error.message.includes("No window with id")) {
              displayStatus("Cannot switch: Window no longer exists.", true);
-             // TODO: Optionally remove the stale session storage key here
+             isStale = true;
+        } else if (error.message.includes("different window")) { // Our custom error
+            displayStatus("Cannot switch: Tab moved to a different window.", true);
+            isStale = true; // Also treat this as stale for the original group context
         } else {
              displayStatus(`Error switching tab: ${error.message}`, true);
+        }
+
+        // If data seems stale, try to clear the session storage key
+        if (isStale && groupId) {
+            const storageKey = `${LAST_ACTIVE_TAB_KEY_PREFIX}${groupId}`;
+            console.log("Sending message to clear stale switch data for key:", storageKey);
+            chrome.runtime.sendMessage({ action: "clearStaleSwitchData", storageKey: storageKey });
+            // We might want to refresh the popup view after this, but it adds complexity
+            // Maybe just rely on the user reopening the popup later
         }
     }
 }
@@ -253,7 +272,7 @@ async function loadGroups() {
             const lastActiveData = await chrome.storage.session.get(storageKeys);
 
             // Display each active group
-            for (const group of groups) { // Use for...of for async inside loop
+            for (const group of groups) {
                 const groupElement = document.createElement('div');
                 groupElement.classList.add('group-item', `color-${group.color || 'grey'}`);
 
@@ -278,7 +297,8 @@ async function loadGroups() {
                     const switchButton = document.createElement('button');
                     switchButton.textContent = 'Switch';
                     switchButton.title = `Switch to last active tab in "${group.title || 'Untitled'}"`;
-                    switchButton.addEventListener('click', () => switchToTab(lastActiveTabId, group.windowId));
+                    // Pass groupId to switchToTab
+                    switchButton.addEventListener('click', () => switchToTab(lastActiveTabId, group.windowId, group.id)); 
                     actionsElement.appendChild(switchButton);
                 }
 

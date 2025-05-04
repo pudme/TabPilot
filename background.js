@@ -91,23 +91,28 @@ chrome.tabGroups.onRemoved.addListener(async (group) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "restoreGroup") {
     console.log("Received restore request for:", message.groupData);
-    // Use an async IIFE to handle the promise-based restore logic
     (async () => {
       try {
         await handleRestoreGroup(message.groupData);
-        // Optional: Send success response back to popup
-        // sendResponse({ success: true }); 
       } catch (error) {
         console.error("Error handling restoreGroup message:", error);
-        // Optional: Send error response back to popup
-        // sendResponse({ success: false, error: error.message });
       }
     })();
-    // Return true to indicate you wish to send a response asynchronously
-    // (Needed if you uncomment sendResponse calls above)
-    // return true; 
+  } else if (message.action === "clearStaleSwitchData") {
+      console.log("Received request to clear stale switch data for key:", message.storageKey);
+      if (message.storageKey && message.storageKey.startsWith(LAST_ACTIVE_TAB_KEY_PREFIX)) {
+          (async () => {
+              try {
+                  await chrome.storage.session.remove(message.storageKey);
+                  console.log("Cleared stale session storage key:", message.storageKey);
+              } catch (error) {
+                  console.error("Error clearing stale session storage:", error);
+              }
+          })();
+      } else {
+          console.warn("Ignoring clearStaleSwitchData request with invalid key:", message.storageKey);
+      }
   }
-  // Handle other potential messages here
 });
 
 // --- Core Logic ---
@@ -198,43 +203,65 @@ async function handleRestoreGroup(groupData) {
     return;
   }
 
-  // 1. Create the tabs
-  console.log("Creating tabs for restoration...");
-  const createPromises = groupData.tabUrls.map(url => 
-    chrome.tabs.create({ url: url, active: false }) // Create inactive
-  );
-  const createdTabs = await Promise.all(createPromises);
+  // 1. Attempt to create all tabs using Promise.allSettled
+  console.log("Attempting to create tabs for restoration...");
+  const createPromises = groupData.tabUrls.map(url => {
+      if (url && typeof url === 'string' && (url.startsWith('http:') || url.startsWith('https:'))) {
+          return chrome.tabs.create({ url: url, active: false }); // Create inactive
+      } else {
+          console.warn(`Skipping invalid or non-HTTP(S) URL during restore: ${url}`);
+          return Promise.resolve({ status: 'rejected', reason: 'Invalid URL' }); // Simulate rejection for invalid URLs
+      }
+  });
+  const results = await Promise.allSettled(createPromises);
+
+  const createdTabs = [];
+  results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+          createdTabs.push(result.value);
+      } else {
+          console.error(`Failed to create tab for URL: ${groupData.tabUrls[index]}. Reason: ${result.reason}`);
+      }
+  });
+
   const tabIds = createdTabs.map(tab => tab.id);
-  console.log("Created tabs:", tabIds);
+  console.log("Successfully created tabs:", tabIds);
 
   if (tabIds.length === 0) {
-      console.warn("Failed to create any tabs for restoration.");
+      console.warn("Failed to create any tabs for restoration. Aborting group creation.");
+      // Maybe notify the user via the popup if possible/needed?
       return;
   }
 
-  // 2. Group the tabs
+  // 2. Group the successfully created tabs
   console.log("Grouping new tabs...");
-  // Ensure we have a valid windowId; use the first tab's windowId
-  const windowId = createdTabs[0].windowId; 
-  const newGroupId = await chrome.tabs.group({
-    tabIds: tabIds,
-    createProperties: { windowId: windowId }
-  });
-  console.log("Created group:", newGroupId);
+  try {
+      const windowId = createdTabs[0].windowId;
+      const newGroupId = await chrome.tabs.group({
+          tabIds: tabIds,
+          createProperties: { windowId: windowId }
+      });
+      console.log("Created group:", newGroupId);
 
-  // 3. Update group properties (title, color)
-  console.log("Updating group properties...");
-  await chrome.tabGroups.update(newGroupId, {
-    title: groupData.title || 'Restored Group',
-    color: groupData.color || 'grey'
-  });
+      // 3. Update group properties (title, color)
+      console.log("Updating group properties...");
+      await chrome.tabGroups.update(newGroupId, {
+          title: groupData.title || 'Restored Group',
+          color: groupData.color || 'grey'
+      });
 
-  console.log(`Group "${groupData.title}" restored successfully.`);
+      console.log(`Group "${groupData.title}" restored successfully with ${tabIds.length}/${groupData.tabUrls.length} tabs.`);
+      
+      // Optional: Focus the first tab of the restored group
+      // await chrome.tabs.update(tabIds[0], { active: true });
+      // Optional: Focus the window where the group was restored
+      // await chrome.windows.update(windowId, { focused: true });
 
-  // Optional: Focus the first tab of the restored group
-  // await chrome.tabs.update(tabIds[0], { active: true });
-  // Optional: Focus the window where the group was restored
-  // await chrome.windows.update(windowId, { focused: true });
+  } catch (error) {
+      console.error("Error during grouping or updating restored group:", error);
+      // If grouping fails, the tabs are created but not grouped.
+      // We might want to try and clean them up, but it's complex.
+  }
 }
 
 // TODO: Load patterns from storage (allow user configuration)
