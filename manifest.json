@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Smart Tab & Window Organizer",
+  "name": "TabPilot",
   "version": "0.1.0",
   "description": "Automatically groups tabs by project, suggests relevant tabs, and allows quick group management.",
   "permissions": [

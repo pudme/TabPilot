@@ -54,25 +54,45 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// --- Track Last Active Tab per Group ---
+// --- Track Last Active Tab per Group & Handle Group Collapse ---
 
-const LAST_ACTIVE_TAB_KEY_PREFIX = 'lastActiveTab_'; // Prefix for storage keys
+const LAST_ACTIVE_TAB_KEY_PREFIX = 'lastActiveTab_';
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   // activeInfo contains tabId and windowId
+  let activatedGroupId = chrome.tabGroups.TAB_GROUP_ID_NONE; 
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    // Check if the activated tab belongs to a group
-    if (tab.groupId && tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
-      const storageKey = `${LAST_ACTIVE_TAB_KEY_PREFIX}${tab.groupId}`;
-      // Store the tabId associated with its group ID in session storage
+    activatedGroupId = tab.groupId; // May be TAB_GROUP_ID_NONE or a valid group ID
+
+    // Store last active tab for the group (if applicable)
+    if (activatedGroupId && activatedGroupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+      const storageKey = `${LAST_ACTIVE_TAB_KEY_PREFIX}${activatedGroupId}`;
       await chrome.storage.session.set({ [storageKey]: tab.id });
-      console.log(`Set last active tab for group ${tab.groupId} to ${tab.id}`);
+      console.log(`Set last active tab for group ${activatedGroupId} to ${tab.id}`);
     }
+
+    // Collapse other groups in the same window
+    const groupsInWindow = await chrome.tabGroups.query({ windowId: activeInfo.windowId });
+    const updates = groupsInWindow.map(group => {
+      // Collapse the group if it's not the one containing the newly activated tab
+      const shouldCollapse = group.id !== activatedGroupId;
+      // Only update if the state needs changing to avoid unnecessary updates
+      if (group.collapsed !== shouldCollapse) {
+          console.log(`Updating group ${group.id} collapsed state to ${shouldCollapse}`);
+          return chrome.tabGroups.update(group.id, { collapsed: shouldCollapse });
+      } else {
+          return Promise.resolve(); // No update needed
+      }
+    });
+    await Promise.allSettled(updates); // Wait for all updates to settle
+
   } catch (error) {
-    // Handle cases where the tab might not exist anymore (race condition)
     if (error.message.includes("No tab with id")) {
         console.warn(`Tab ${activeInfo.tabId} not found during onActivated listener.`);
+    } else if (error.message.includes("No group with id")) {
+        // This might happen if a group is removed concurrently
+        console.warn("Attempted to update a non-existent group during collapse logic.");
     } else {
         console.error("Error in tabs.onActivated listener:", error);
     }
@@ -203,14 +223,14 @@ async function handleRestoreGroup(groupData) {
     return;
   }
 
-  // 1. Attempt to create all tabs using Promise.allSettled
-  console.log("Attempting to create tabs for restoration...");
+  // 1. Attempt to create all tabs (inactive)
+  console.log("Attempting to create tabs for restoration (inactive)...");
   const createPromises = groupData.tabUrls.map(url => {
       if (url && typeof url === 'string' && (url.startsWith('http:') || url.startsWith('https:'))) {
-          return chrome.tabs.create({ url: url, active: false }); // Create inactive
+          return chrome.tabs.create({ url: url, active: false });
       } else {
           console.warn(`Skipping invalid or non-HTTP(S) URL during restore: ${url}`);
-          return Promise.resolve({ status: 'rejected', reason: 'Invalid URL' }); // Simulate rejection for invalid URLs
+          return Promise.resolve({ status: 'rejected', reason: 'Invalid URL' });
       }
   });
   const results = await Promise.allSettled(createPromises);
@@ -229,14 +249,24 @@ async function handleRestoreGroup(groupData) {
 
   if (tabIds.length === 0) {
       console.warn("Failed to create any tabs for restoration. Aborting group creation.");
-      // Maybe notify the user via the popup if possible/needed?
       return;
   }
+
+  // *** NEW: Discard newly created tabs ***
+  console.log("Attempting to discard newly created tabs...");
+  const discardPromises = tabIds.map(id => chrome.tabs.discard(id).catch(err => {
+      // discard can fail if the tab is already discarded or not yet discardable
+      console.warn(`Could not discard tab ${id}: ${err.message}`);
+  }));
+  await Promise.allSettled(discardPromises);
+  console.log("Finished attempting to discard tabs.");
+  // *** END NEW ***
 
   // 2. Group the successfully created tabs
   console.log("Grouping new tabs...");
   try {
       const windowId = createdTabs[0].windowId;
+      // Optionally create the group collapsed initially
       const newGroupId = await chrome.tabs.group({
           tabIds: tabIds,
           createProperties: { windowId: windowId }
@@ -244,23 +274,18 @@ async function handleRestoreGroup(groupData) {
       console.log("Created group:", newGroupId);
 
       // 3. Update group properties (title, color)
-      console.log("Updating group properties...");
+      // Make sure group is collapsed after creation if desired
+      console.log("Updating group properties (and collapsing)...");
       await chrome.tabGroups.update(newGroupId, {
           title: groupData.title || 'Restored Group',
-          color: groupData.color || 'grey'
+          color: groupData.color || 'grey',
+          collapsed: true // Ensure restored groups start collapsed
       });
 
       console.log(`Group "${groupData.title}" restored successfully with ${tabIds.length}/${groupData.tabUrls.length} tabs.`);
-      
-      // Optional: Focus the first tab of the restored group
-      // await chrome.tabs.update(tabIds[0], { active: true });
-      // Optional: Focus the window where the group was restored
-      // await chrome.windows.update(windowId, { focused: true });
 
   } catch (error) {
       console.error("Error during grouping or updating restored group:", error);
-      // If grouping fails, the tabs are created but not grouped.
-      // We might want to try and clean them up, but it's complex.
   }
 }
 

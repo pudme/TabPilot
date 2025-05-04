@@ -1,4 +1,4 @@
-# Smart Tab & Window Organizer (TabPilot)
+# TabPilot
 Created by pudme.
 
 A Chrome extension designed to combat tab sprawl and keep your browsing focused by automatically organizing tabs based on user-defined patterns and providing quick management tools.
@@ -39,14 +39,14 @@ Features
     *   Archived group data is saved using `chrome.storage.sync`.
     *   Last active tab information per group is temporarily stored using `chrome.storage.session` (cleared when the browser closes).
 
-Installation (Development)
+## Installation (Development)
 
 1.  Clone or download this repository.
 2.  Open Chrome and navigate to `chrome://extensions`.
 3.  Enable "Developer mode" using the toggle switch in the top-right corner.
 4.  Click the "Load unpacked" button.
 5.  Select the directory containing the extension's code (the folder with `manifest.json`).
-6.  The "Smart Tab & Window Organizer" icon should appear in your toolbar.
+6.  The TabPilot icon should appear in your toolbar.
 
 Future Ideas
 
