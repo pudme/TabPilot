@@ -11,6 +11,10 @@ const newGroupColorSelect = document.getElementById('manual-group-color');
 const existingGroupSelect = document.getElementById('existing-group-select');
 const confirmManualGroupButton = document.getElementById('confirm-manual-group');
 const cancelManualGroupButton = document.getElementById('cancel-manual-group');
+const autoGroupButton = document.getElementById('auto-group-button'); // Add reference for new button
+
+// --- State Variables ---
+let highlightedTabIds = []; // Store IDs of tabs to be grouped
 
 // --- Storage Keys ---
 const ARCHIVED_GROUPS_KEY = 'archivedGroups';
@@ -433,16 +437,95 @@ async function loadGroups() {
         groupsListDiv.innerHTML = `<p>Error loading groups: ${error.message}</p>`;
         displayStatus("Error loading groups.", true);
     }
-    // Finally, load archived groups
     await loadArchivedGroups();
+}
+
+// --- Auto Grouping Function ---
+
+async function handleAutoGroupClick() {
+    displayStatus("Scanning ungrouped tabs...");
+    manualGroupOptionsDiv.classList.add('hidden'); // Ensure manual options are hidden
+    highlightedTabIds = []; // Reset manual selection state
+
+    try {
+        const allTabs = await chrome.tabs.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+        const ungroupedTabs = allTabs.filter(tab => 
+            tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE &&
+            tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https:'))
+        );
+
+        if (ungroupedTabs.length < 2) {
+            displayStatus("Not enough ungrouped tabs to automatically create groups.", true);
+            return;
+        }
+
+        const tabsByHostname = new Map();
+        ungroupedTabs.forEach(tab => {
+            try {
+                const url = new URL(tab.url);
+                const hostname = url.hostname.startsWith('www.') ? url.hostname.substring(4) : url.hostname;
+                if (!tabsByHostname.has(hostname)) {
+                    tabsByHostname.set(hostname, []);
+                }
+                tabsByHostname.get(hostname).push(tab.id);
+            } catch (e) {
+                console.warn(`Could not parse URL for tab ${tab.id}: ${tab.url}`, e);
+            }
+        });
+
+        let groupsCreated = 0;
+        let tabsGrouped = 0;
+        const groupPromises = [];
+
+        for (const [hostname, tabIds] of tabsByHostname.entries()) {
+            if (tabIds.length >= 2) {
+                groupsCreated++;
+                tabsGrouped += tabIds.length;
+                groupPromises.push(
+                    (async () => {
+                        try {
+                            const newGroupId = await chrome.tabs.group({ tabIds: tabIds });
+                            // Try to update title/color/collapse state, but don't fail if this errors
+                            await chrome.tabGroups.update(newGroupId, { 
+                                title: hostname, 
+                                color: 'grey', // Default color
+                                collapsed: true
+                            }).catch(updateErr => console.warn(`Could not update new group ${newGroupId} for ${hostname}: ${updateErr.message}`));
+                        } catch (groupErr) {
+                             console.error(`Failed to create group for hostname ${hostname}: ${groupErr.message}`);
+                             // Decrement count if group creation failed
+                             groupsCreated--; 
+                             tabsGrouped -= tabIds.length;
+                        }
+                    })()
+                );
+            }
+        }
+
+        // Wait for all grouping attempts to finish
+        await Promise.allSettled(groupPromises);
+
+        if (groupsCreated > 0) {
+            displayStatus(`Created ${groupsCreated} new group(s) for ${tabsGrouped} tabs.`, false, true);
+            await loadGroups(); // Refresh the list
+        } else {
+            displayStatus("No new groups created. (Need 2+ tabs from the same domain)", true);
+        }
+
+    } catch (error) {
+        console.error("Error during auto-grouping:", error);
+        displayStatus(`Error auto-grouping tabs: ${error.message}`, true);
+    }
 }
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    loadGroups(); // Initial load
+    // Load regular popup content
+    loadGroups(); 
 
-    // Add new event listeners
+    // Add event listeners for non-auth buttons
     groupSelectedButton.addEventListener('click', handleGroupSelectedClick);
     confirmManualGroupButton.addEventListener('click', handleConfirmManualGroup);
     cancelManualGroupButton.addEventListener('click', handleCancelManualGroup);
+    autoGroupButton.addEventListener('click', handleAutoGroupClick); // Add listener for new button
 });

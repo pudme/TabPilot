@@ -136,10 +136,12 @@ function removePattern(index) {
     savePatterns(); // Save and re-render
 }
 
-// --- Event Listeners ---
-
-addButton.addEventListener('click', addPattern);
-
 // --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Load regular options content
+    loadPatterns();
 
-loadPatterns(); 
+    // Add event listeners for non-auth buttons
+    addButton.addEventListener('click', addPattern);
+    // Note: removeButton listeners are added dynamically in renderPatterns
+}); 
