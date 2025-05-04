@@ -169,10 +169,52 @@
         border-radius: var(--border-radius);
     }
 
+    /* Utility */
+    .hidden {
+        display: none !important; /* Important to override potential inline styles if needed */
+    }
+
   </style>
 </head>
 <body>
   <h1>TabPilot - Active Groups</h1>
+
+  <button id="group-selected-button" style="margin-bottom: 10px; width: 100%;">Group Selected Tabs</button>
+
+  <div id="manual-group-options" class="hidden" style="margin-bottom: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--border-radius); background-color: var(--background-alt);">
+    <h3 style="margin-top: 0; margin-bottom: 8px; font-size: 1.0em;">Group <span id="selected-tab-count">0</span> Selected Tabs</h3>
+    
+    <div style="margin-bottom: 8px;">
+        <label for="new-manual-group-name" style="display: block; margin-bottom: 3px; font-size: 0.9em;">New Group Name:</label>
+        <input type="text" id="new-manual-group-name" placeholder="(Optional)" style="width: calc(100% - 16px); padding: 5px; border: 1px solid var(--input-border-color); border-radius: var(--border-radius);">
+    </div>
+    
+    <div style="margin-bottom: 10px;">
+        <label for="manual-group-color" style="display: inline-block; margin-right: 5px; font-size: 0.9em;">Color:</label>
+        <select id="manual-group-color" style="padding: 3px; border-radius: var(--border-radius); border-color: var(--input-border-color);">
+            <option value="grey">Grey</option>
+            <option value="blue">Blue</option>
+            <option value="red">Red</option>
+            <option value="yellow">Yellow</option>
+            <option value="green">Green</option>
+            <option value="pink">Pink</option>
+            <option value="purple">Purple</option>
+            <option value="cyan">Cyan</option>
+        </select>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+        <label for="existing-group-select" style="display: block; margin-bottom: 3px; font-size: 0.9em;">Or Add to Existing Group:</label>
+        <select id="existing-group-select" style="width: 100%; padding: 5px; border: 1px solid var(--input-border-color); border-radius: var(--border-radius);">
+            <option value="">-- Select Existing Group --</option>
+            <!-- Existing groups populated by JS -->
+        </select>
+    </div>
+
+    <button id="confirm-manual-group">Confirm Grouping</button>
+    <button id="cancel-manual-group" style="margin-left: 5px; background-color: var(--button-bg);">Cancel</button>
+  </div>
+
   <div id="groups-list">
     <p>Loading groups...</p>
   </div>

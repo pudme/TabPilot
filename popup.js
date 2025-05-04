@@ -3,6 +3,14 @@
 const groupsListDiv = document.getElementById('groups-list');
 const archivedListDiv = document.getElementById('archived-groups-list'); // Get the new div
 const statusDiv = document.getElementById('status');
+const groupSelectedButton = document.getElementById('group-selected-button');
+const manualGroupOptionsDiv = document.getElementById('manual-group-options');
+const selectedTabCountSpan = document.getElementById('selected-tab-count');
+const newGroupNameInput = document.getElementById('new-manual-group-name');
+const newGroupColorSelect = document.getElementById('manual-group-color');
+const existingGroupSelect = document.getElementById('existing-group-select');
+const confirmManualGroupButton = document.getElementById('confirm-manual-group');
+const cancelManualGroupButton = document.getElementById('cancel-manual-group');
 
 // --- Storage Keys ---
 const ARCHIVED_GROUPS_KEY = 'archivedGroups';
@@ -244,7 +252,114 @@ async function loadArchivedGroups() {
     }
 }
 
+// --- Manual Grouping Functions ---
+
+async function handleGroupSelectedClick() {
+    displayStatus("Checking selected tabs...");
+    manualGroupOptionsDiv.classList.add('hidden'); // Hide initially
+    highlightedTabIds = []; // Reset
+
+    try {
+        const highlightedTabs = await chrome.tabs.query({
+            highlighted: true,
+            currentWindow: true
+        });
+
+        // Filter out tabs that are already in any group
+        const ungroupedHighlightedTabs = highlightedTabs.filter(tab => tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE);
+
+        if (ungroupedHighlightedTabs.length < 2) {
+            displayStatus("Please select at least 2 ungrouped tabs to create a group.", true);
+            return;
+        }
+
+        highlightedTabIds = ungroupedHighlightedTabs.map(tab => tab.id);
+        selectedTabCountSpan.textContent = highlightedTabIds.length;
+
+        // Populate existing groups dropdown
+        const activeGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+        existingGroupSelect.innerHTML = '<option value="">-- Select Existing Group --</option>'; // Reset
+        activeGroups.sort((a, b) => (a.title || 'Untitled').localeCompare(b.title || 'Untitled'));
+        activeGroups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group.id;
+            option.textContent = group.title || 'Untitled Group';
+            existingGroupSelect.appendChild(option);
+        });
+
+        // Reset form fields
+        newGroupNameInput.value = '';
+        newGroupColorSelect.value = 'grey';
+        existingGroupSelect.value = ''; // Ensure the default is selected
+
+        // Show the options
+        manualGroupOptionsDiv.classList.remove('hidden');
+        displayStatus(`Found ${highlightedTabIds.length} selected ungrouped tabs. Choose grouping option.`);
+
+    } catch (error) {
+        console.error("Error getting highlighted tabs or active groups:", error);
+        displayStatus("Error preparing manual grouping options.", true);
+    }
+}
+
+async function handleConfirmManualGroup() {
+    if (highlightedTabIds.length === 0) {
+        displayStatus("No tabs selected for grouping.", true);
+        return;
+    }
+
+    const existingGroupId = parseInt(existingGroupSelect.value, 10);
+    const newGroupName = newGroupNameInput.value.trim();
+    const newGroupColor = newGroupColorSelect.value;
+
+    manualGroupOptionsDiv.classList.add('hidden'); // Hide options after clicking confirm
+    displayStatus("Grouping tabs...");
+
+    try {
+        if (existingGroupId && !isNaN(existingGroupId)) {
+            // Add to existing group
+            await chrome.tabs.group({ tabIds: highlightedTabIds, groupId: existingGroupId });
+            console.log(`Added tabs ${highlightedTabIds} to existing group ${existingGroupId}`);
+            displayStatus(`Added ${highlightedTabIds.length} tabs to existing group.`, false, true);
+        } else {
+            // Create a new group
+            const groupOptions = { tabIds: highlightedTabIds };
+            // Don't set createProperties if we intend to update title/color immediately after
+            // groupOptions.createProperties = { windowId: chrome.windows.WINDOW_ID_CURRENT }; // Assuming current window
+            
+            const newGroupId = await chrome.tabs.group(groupOptions);
+            console.log(`Created new group ${newGroupId} for tabs ${highlightedTabIds}`);
+
+            // Update title and color if specified, or use defaults
+            await chrome.tabGroups.update(newGroupId, { 
+                title: newGroupName || "New Group", // Default title if none entered
+                color: newGroupColor 
+            });
+            displayStatus(`Created new group with ${highlightedTabIds.length} tabs.`, false, true);
+        }
+
+        // Reset state and refresh lists
+        highlightedTabIds = [];
+        await loadGroups();
+        await loadArchivedGroups(); // Refresh archives too, just in case
+
+    } catch (error) {
+        console.error("Error performing manual grouping:", error);
+        displayStatus(`Error grouping tabs: ${error.message}`, true);
+        // Reset state even on error
+        highlightedTabIds = [];
+    }
+}
+
+function handleCancelManualGroup() {
+    manualGroupOptionsDiv.classList.add('hidden');
+    highlightedTabIds = []; // Clear selection
+    displayStatus("Manual grouping cancelled.");
+}
+
 async function loadGroups() {
+    // Hide manual group options when popup reloads/refreshes
+    manualGroupOptionsDiv.classList.add('hidden');
     try {
         // Get active groups in the current window
         const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
@@ -323,4 +438,11 @@ async function loadGroups() {
 }
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', loadGroups);
+document.addEventListener('DOMContentLoaded', () => {
+    loadGroups(); // Initial load
+
+    // Add new event listeners
+    groupSelectedButton.addEventListener('click', handleGroupSelectedClick);
+    confirmManualGroupButton.addEventListener('click', handleConfirmManualGroup);
+    cancelManualGroupButton.addEventListener('click', handleCancelManualGroup);
+});
