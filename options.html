@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Tab Organizer Options</title>
+  <style>
+    :root {
+        --border-radius: 4px;
+        --padding-small: 5px;
+        --padding-medium: 8px;
+        --padding-large: 10px;
+        --padding-xlarge: 20px;
+        --text-color: #333;
+        --text-muted: #666;
+        --background-color: #fdfdfd; /* Slightly off-white */
+        --background-alt: #f0f0f0;
+        --border-color: #ccc;
+        --border-color-light: #eee;
+        --button-bg: #e0e0e0;
+        --button-hover-bg: #d0d0d0;
+        --button-primary-bg: #1a73e8;
+        --button-primary-hover-bg: #1765cc;
+        --button-primary-text: #fff;
+        --button-danger-bg: #f8d7da;
+        --button-danger-hover-bg: #f5c6cb;
+        --button-danger-text: #721c24;
+        --input-border-color: #aaa;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        padding: var(--padding-xlarge);
+        background-color: var(--background-color);
+        color: var(--text-color);
+        max-width: 600px; /* Limit width */
+        margin: 20px auto; /* Center on page */
+    }
+    h1, h2 {
+        font-weight: 600;
+        margin-top: 0;
+        margin-bottom: var(--padding-large);
+        color: var(--text-color);
+    }
+    h1 { font-size: 1.5em; }
+    h2 { font-size: 1.2em; margin-top: var(--padding-xlarge); border-top: 1px solid var(--border-color-light); padding-top: var(--padding-large); }
+
+    #patterns-list {
+        margin-bottom: var(--padding-xlarge);
+    }
+    .pattern-item {
+        border: 1px solid var(--border-color);
+        padding: var(--padding-medium) var(--padding-large);
+        margin-bottom: var(--padding-medium);
+        border-radius: var(--border-radius);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #fff; /* White background for items */
+    }
+    .pattern-details {
+        flex-grow: 1;
+        margin-right: var(--padding-large);
+        display: flex;
+        align-items: center;
+        gap: var(--padding-medium);
+        font-size: 0.95em;
+    }
+    .pattern-details strong {
+        color: var(--text-color);
+    }
+    .color-preview {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 1px solid rgba(0,0,0,0.2);
+        border-radius: 50%; /* Circle */
+        vertical-align: middle;
+    }
+
+    #add-pattern-form label {
+        display: block;
+        margin-bottom: var(--padding-small);
+        font-weight: 500;
+        color: var(--text-muted);
+    }
+    #add-pattern-form input[type="text"],
+    #add-pattern-form select {
+        width: calc(100% - 16px); /* Full width minus padding */
+        padding: var(--padding-medium);
+        margin-bottom: var(--padding-large);
+        border: 1px solid var(--input-border-color);
+        border-radius: var(--border-radius);
+        font-size: 1em;
+    }
+     #add-pattern-form select {
+         width: auto; /* Allow select to size naturally */
+         min-width: 150px;
+         margin-right: var(--padding-medium);
+         vertical-align: middle;
+     }
+    #add-pattern-form .form-row {
+         display: flex;
+         align-items: center; /* Align items for color select/button */
+         gap: var(--padding-small);
+     }
+
+    button {
+        padding: var(--padding-medium) var(--padding-large);
+        font-size: 1em;
+        border-radius: var(--border-radius);
+        border: 1px solid transparent;
+        background-color: var(--button-bg);
+        color: var(--text-color);
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+        white-space: nowrap;
+    }
+    button:hover {
+        filter: brightness(95%);
+    }
+    button:active {
+        transform: translateY(1px);
+    }
+    button.remove-button {
+        background-color: var(--button-danger-bg);
+        color: var(--button-danger-text);
+        border-color: var(--button-danger-hover-bg);
+        padding: var(--padding-small) var(--padding-medium); /* Smaller remove button */
+        font-size: 0.9em;
+    }
+    button.remove-button:hover {
+        background-color: var(--button-danger-hover-bg);
+    }
+    button#add-button {
+        background-color: var(--button-primary-bg);
+        color: var(--button-primary-text);
+    }
+    button#add-button:hover {
+        background-color: var(--button-primary-hover-bg);
+    }
+
+    #status {
+        margin-top: var(--padding-large);
+        padding: var(--padding-medium);
+        font-size: 0.95em;
+        text-align: center;
+        border-radius: var(--border-radius);
+        min-height: 1.3em;
+    }
+    #status.error {
+        color: var(--button-danger-text);
+        background-color: var(--button-danger-bg);
+    }
+    #status.success {
+        color: #155724;
+        background-color: #d4edda;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Smart Tab Organizer - Options</h1>
+
+  <h2>Grouping Patterns</h2>
+  <p style="color: var(--text-muted); font-size: 0.9em; margin-top: -10px; margin-bottom: 15px;">Define keywords or URL parts to automatically group tabs.</p>
+  <div id="patterns-list">
+    <!-- Patterns will be loaded here -->
+    <p>Loading patterns...</p>
+  </div>
+
+  <h2>Add New Pattern</h2>
+  <div id="add-pattern-form">
+    <div>
+        <label for="new-pattern">Pattern (URL/Title Keyword):</label>
+        <input type="text" id="new-pattern" placeholder="e.g., github.com or ProjectX" />
+    </div>
+    <div>
+        <label for="new-title">Group Title:</label>
+        <input type="text" id="new-title" placeholder="e.g., GitHub or Project X" />
+    </div>
+    <div class="form-row">
+        <div>
+            <label for="new-color">Group Color:</label>
+            <select id="new-color">
+              <option value="grey">Grey</option>
+              <option value="blue">Blue</option>
+              <option value="red">Red</option>
+              <option value="yellow">Yellow</option>
+              <option value="green">Green</option>
+              <option value="pink">Pink</option>
+              <option value="purple">Purple</option>
+              <option value="cyan">Cyan</option>
+            </select>
+        </div>
+        <button id="add-button">Add Pattern</button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html> 

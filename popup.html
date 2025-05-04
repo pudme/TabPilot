@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tab Organizer</title>
+  <style>
+    :root {
+        --group-border-width: 4px;
+        --border-radius: 4px;
+        --padding-small: 5px;
+        --padding-medium: 8px;
+        --padding-large: 10px;
+        --text-color: #333;
+        --text-muted: #666;
+        --background-color: #fff;
+        --background-alt: #f9f9f9;
+        --border-color: #ddd;
+        --border-color-light: #eee;
+        --button-bg: #e0e0e0;
+        --button-hover-bg: #d0d0d0;
+        --button-danger-bg: #f8d7da;
+        --button-danger-hover-bg: #f5c6cb;
+        --button-danger-text: #721c24;
+    }
+    body {
+      width: 360px; /* Slightly wider */
+      min-height: 100px;
+      max-height: 450px; /* Increased max height */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px; /* Base font size */
+      padding: var(--padding-large);
+      overflow-y: auto;
+      color: var(--text-color);
+      background-color: var(--background-color);
+    }
+    h1, h2 {
+      margin-top: 0;
+      font-size: 1.1em; /* Slightly smaller headings */
+      margin-bottom: var(--padding-medium);
+      color: var(--text-color);
+      font-weight: 600;
+    }
+    hr {
+        margin: 15px 0;
+        border: none;
+        border-top: 1px solid var(--border-color-light);
+    }
+
+    /* Active Groups */
+    #groups-list {
+      margin-top: var(--padding-medium);
+    }
+    .group-item {
+      border: 1px solid var(--border-color);
+      border-left-width: var(--group-border-width);
+      padding: var(--padding-medium) var(--padding-large);
+      margin-bottom: var(--padding-medium);
+      border-radius: var(--border-radius);
+      background-color: var(--background-color);
+    }
+    .group-title {
+      font-weight: 600; /* Bolder title */
+      margin-bottom: var(--padding-small);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tab-count {
+        font-weight: normal;
+        font-size: 0.9em;
+        color: var(--text-muted);
+    }
+    /* Group Colors */
+    .color-grey { border-left-color: grey; }
+    .color-blue { border-left-color: #1a73e8; }
+    .color-red { border-left-color: #d93025; }
+    .color-yellow { border-left-color: #fad24d; }
+    .color-green { border-left-color: #1e8e3e; }
+    .color-pink { border-left-color: #e52592; }
+    .color-purple { border-left-color: #9334e6; }
+    .color-cyan { border-left-color: #23c4d8; }
+    /* .color-orange { border-left-color: #e98900; } */
+
+    /* Archived Groups */
+    #archived-groups-list {
+        margin-top: var(--padding-large);
+        padding-top: var(--padding-large);
+    }
+    #archived-groups-list h2 {
+        /* Use same style as h1 */
+    }
+    .archived-item {
+        border: 1px solid var(--border-color);
+        background-color: var(--background-alt);
+        padding: var(--padding-medium) var(--padding-large);
+        margin-bottom: var(--padding-medium);
+        border-radius: var(--border-radius);
+    }
+    .archived-details {
+        margin-bottom: var(--padding-small);
+    }
+    .archived-details span {
+        display: block;
+        font-size: 0.9em;
+        color: var(--text-muted);
+        margin-bottom: 3px; /* Spacing between lines */
+    }
+     .archived-details strong {
+        color: var(--text-color);
+        font-weight: 600;
+     }
+     .archived-details .color-dot {
+         display: inline-block;
+         width: 10px;
+         height: 10px;
+         border-radius: 50%;
+         margin-left: 4px;
+         vertical-align: middle;
+     }
+
+    /* Actions and Buttons */
+    .group-actions, .archived-actions {
+        margin-top: var(--padding-medium);
+        display: flex; /* Align buttons */
+        gap: var(--padding-small); /* Space between buttons */
+    }
+    button {
+        padding: var(--padding-small) var(--padding-medium);
+        font-size: 0.9em;
+        border-radius: var(--border-radius);
+        border: 1px solid #bbb; /* Subtle border */
+        background-color: var(--button-bg);
+        color: var(--text-color);
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+        white-space: nowrap; /* Prevent wrapping */
+    }
+    button:hover {
+        background-color: var(--button-hover-bg);
+    }
+    button:active {
+        transform: translateY(1px);
+    }
+    /* Specific button types */
+    .archived-actions .delete-button {
+        background-color: var(--button-danger-bg);
+        color: var(--button-danger-text);
+        border-color: #f5c6cb;
+    }
+     .archived-actions .delete-button:hover {
+         background-color: var(--button-danger-hover-bg);
+     }
+
+    /* Status Message */
+    #status {
+        margin-top: var(--padding-large);
+        padding: var(--padding-small);
+        font-size: 0.9em;
+        text-align: center;
+        min-height: 1.2em; /* Prevent layout shift */
+    }
+    #status.error {
+        color: var(--button-danger-text);
+        background-color: var(--button-danger-bg);
+        border-radius: var(--border-radius);
+    }
+    #status.success {
+        color: #155724;
+        background-color: #d4edda;
+        border-radius: var(--border-radius);
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Active Groups</h1>
+  <div id="groups-list">
+    <p>Loading groups...</p>
+  </div>
+
+  <hr>
+
+  <div id="archived-groups-list">
+    <h2>Archived Groups</h2>
+    <p>Loading archives...</p>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html> 

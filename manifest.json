@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Tab & Window Organizer",
+  "version": "0.1.0",
+  "description": "Automatically groups tabs by project, suggests relevant tabs, and allows quick group management.",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tab Organizer",
+    "default_icon": { 
+      "16": "images/icon16.png",
+      "32": "images/icon32.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": { 
+    "16": "images/icon16.png",
+    "32": "images/icon32.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}
