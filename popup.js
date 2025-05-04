@@ -181,10 +181,7 @@ async function switchToTab(tabId, windowId, groupId) {
         // If data seems stale, try to clear the session storage key
         if (isStale && groupId) {
             const storageKey = `${LAST_ACTIVE_TAB_KEY_PREFIX}${groupId}`;
-            console.log("Sending message to clear stale switch data for key:", storageKey);
             chrome.runtime.sendMessage({ action: "clearStaleSwitchData", storageKey: storageKey });
-            // We might want to refresh the popup view after this, but it adds complexity
-            // Maybe just rely on the user reopening the popup later
         }
     }
 }
@@ -323,7 +320,6 @@ async function handleConfirmManualGroup() {
         if (existingGroupId && !isNaN(existingGroupId)) {
             // Add to existing group
             await chrome.tabs.group({ tabIds: highlightedTabIds, groupId: existingGroupId });
-            console.log(`Added tabs ${highlightedTabIds} to existing group ${existingGroupId}`);
             displayStatus(`Added ${highlightedTabIds.length} tabs to existing group.`, false, true);
         } else {
             // Create a new group
@@ -332,7 +328,6 @@ async function handleConfirmManualGroup() {
             // groupOptions.createProperties = { windowId: chrome.windows.WINDOW_ID_CURRENT }; // Assuming current window
             
             const newGroupId = await chrome.tabs.group(groupOptions);
-            console.log(`Created new group ${newGroupId} for tabs ${highlightedTabIds}`);
 
             // Update title and color if specified, or use defaults
             await chrome.tabGroups.update(newGroupId, { 
@@ -490,7 +485,7 @@ async function handleAutoGroupClick() {
                                 title: hostname, 
                                 color: 'grey', // Default color
                                 collapsed: true
-                            }).catch(updateErr => console.warn(`Could not update new group ${newGroupId} for ${hostname}: ${updateErr.message}`));
+                            }).catch(updateErr => {});
                         } catch (groupErr) {
                              console.error(`Failed to create group for hostname ${hostname}: ${groupErr.message}`);
                              // Decrement count if group creation failed
