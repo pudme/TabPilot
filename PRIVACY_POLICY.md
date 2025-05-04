@@ -1,6 +1,6 @@
 Privacy Policy for TabPilot Chrome Extension
 
-Last Updated: [Insert Date Here]
+Last Updated: May 4, 2025
 
 Thank you for using TabPilot! This policy explains what information the TabPilot Chrome Extension collects and how it's used.
 
@@ -39,4 +39,4 @@ We may update this privacy policy from time to time. We will notify you of any s
 
 Contact Us:
 
-If you have any questions about this privacy policy, please contact [Insert Your Contact Email or GitHub Issues Link Here]. 
+If you have any questions about this privacy policy, please contact pudme. 
